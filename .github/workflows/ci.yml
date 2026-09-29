@@ -37,12 +37,6 @@ jobs:
       - name: Run unit and application tests
         run: uv run pytest -q --ignore=tests/gold --ignore=tests/silver
 
-      - name: Install Databricks CLI
-        uses: databricks/setup-cli@v1.8.0
-
-      - name: Validate Databricks bundle
-        run: databricks bundle validate -t dev
-
   integration-tests:
     name: Databricks Integration Tests
     needs: validate
@@ -77,8 +71,14 @@ jobs:
       - name: Install dependencies
         run: uv sync
 
+      - name: Install Databricks CLI
+        uses: databricks/setup-cli@v1.8.0
+
       - name: Verify Databricks authentication
         run: databricks current-user me
+
+      - name: Validate Databricks bundle
+        run: databricks bundle validate -t dev
 
       - name: Run Databricks integration tests
         run: uv run pytest tests/gold tests/silver -q
