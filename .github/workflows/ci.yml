@@ -34,8 +34,8 @@ jobs:
       - name: Run Ruff
         run: uv run ruff check .
 
-      - name: Run tests
-        run: uv run pytest
+      - name: Run unit and application tests
+        run: uv run pytest -q --ignore=tests/gold --ignore=tests/silver
 
       - name: Install Databricks CLI
         uses: databricks/setup-cli@v1.8.0
@@ -43,9 +43,51 @@ jobs:
       - name: Validate Databricks bundle
         run: databricks bundle validate -t dev
 
+  integration-tests:
+    name: Databricks Integration Tests
+    needs: validate
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: dev
+
+    permissions:
+      id-token: write
+      contents: read
+
+    env:
+      DATABRICKS_AUTH_TYPE: github-oidc
+      DATABRICKS_HOST: https://dbc-7b9faa8e-9cac.cloud.databricks.com
+      DATABRICKS_CLIENT_ID: f5fb7304-bf5c-4716-a69c-1f99f8f67c14
+      RUN_DATABRICKS_TESTS: "1"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Verify Databricks authentication
+        run: databricks current-user me
+
+      - name: Run Databricks integration tests
+        run: uv run pytest tests/gold tests/silver -q
+
   deploy-dev:
     name: Deploy DEV
-    needs: validate
+    needs:
+      - validate
+      - integration-tests
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: dev
