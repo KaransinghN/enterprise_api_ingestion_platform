@@ -38,7 +38,7 @@ targets:
     default: true
 
     workspace:
-      host: https://dbc-09b52ae8-23ca.cloud.databricks.com
+      host: https://dbc-7b9faa8e-9cac.cloud.databricks.com
 
     variables:
       catalog: workspace
