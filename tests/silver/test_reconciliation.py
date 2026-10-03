@@ -7,8 +7,12 @@ import os
 from pyspark.sql import SparkSession
 
 
-BRONZE_ORDER_TABLE = "workspace.bronze.openapi_orders"
-SILVER_ORDER_TABLE = "workspace.karan_vsk.fact_order"
+CATALOG = os.environ.get("DATABRICKS_TEST_CATALOG", "enterprise_api_dev")
+BRONZE_SCHEMA = os.environ.get("DATABRICKS_TEST_BRONZE_SCHEMA", "bronze")
+SILVER_SCHEMA = os.environ.get("DATABRICKS_TEST_SILVER_SCHEMA", "silver")
+
+BRONZE_ORDER_TABLE = f"{CATALOG}.{BRONZE_SCHEMA}.openapi_orders"
+SILVER_ORDER_TABLE = f"{CATALOG}.{SILVER_SCHEMA}.fact_order"
 
 
 def _latest_bronze_order_count(spark: SparkSession) -> int:

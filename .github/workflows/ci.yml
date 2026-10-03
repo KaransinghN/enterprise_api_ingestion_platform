@@ -80,33 +80,28 @@ jobs:
       - name: Validate Databricks bundle
         run: databricks bundle validate -t dev
 
-      - name: Run Databricks integration tests
-        run: uv run pytest tests/gold tests/silver -q
-
-  deploy-dev:
-    name: Deploy DEV
-    needs:
-      - validate
-      - integration-tests
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    environment: dev
-
-    permissions:
-      id-token: write
-      contents: read
-
-    env:
-      DATABRICKS_AUTH_TYPE: github-oidc
-      DATABRICKS_HOST: https://dbc-7b9faa8e-9cac.cloud.databricks.com
-      DATABRICKS_CLIENT_ID: f5fb7304-bf5c-4716-a69c-1f99f8f67c14
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Install Databricks CLI
-        uses: databricks/setup-cli@v1.8.0
-
       - name: Deploy Databricks bundle to DEV
         run: databricks bundle deploy -t dev
+
+      - name: Resolve deployed DEV schemas
+        shell: bash
+        run: |
+          SUMMARY="$(databricks bundle summary -t dev --output json)"
+
+          BRONZE_SCHEMA="$(printf '%s' "$SUMMARY" | jq -r '.resources.schemas.bronze_schema.name')"
+          SILVER_SCHEMA="$(printf '%s' "$SUMMARY" | jq -r '.resources.schemas.silver_schema.name')"
+          GOLD_SCHEMA="$(printf '%s' "$SUMMARY" | jq -r '.resources.schemas.gold_schema.name')"
+
+          test -n "$BRONZE_SCHEMA"
+          test -n "$SILVER_SCHEMA"
+          test -n "$GOLD_SCHEMA"
+
+          {
+            echo "DATABRICKS_TEST_CATALOG=enterprise_api_dev"
+            echo "DATABRICKS_TEST_BRONZE_SCHEMA=$BRONZE_SCHEMA"
+            echo "DATABRICKS_TEST_SILVER_SCHEMA=$SILVER_SCHEMA"
+            echo "DATABRICKS_TEST_GOLD_SCHEMA=$GOLD_SCHEMA"
+          } >> "$GITHUB_ENV"
+
+      - name: Run Databricks integration tests
+        run: uv run pytest tests/gold tests/silver -q

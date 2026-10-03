@@ -7,8 +7,12 @@ import os
 from pyspark.sql import SparkSession
 
 
-SILVER_ORDER_TABLE = "workspace.karan_vsk.fact_order"
-GOLD_ORDER_KPI_TABLE = "workspace.karan_vsk.gold_order_kpis"
+CATALOG = os.environ.get("DATABRICKS_TEST_CATALOG", "enterprise_api_dev")
+SILVER_SCHEMA = os.environ.get("DATABRICKS_TEST_SILVER_SCHEMA", "silver")
+GOLD_SCHEMA = os.environ.get("DATABRICKS_TEST_GOLD_SCHEMA", "gold")
+
+SILVER_ORDER_TABLE = f"{CATALOG}.{SILVER_SCHEMA}.fact_order"
+GOLD_ORDER_KPI_TABLE = f"{CATALOG}.{GOLD_SCHEMA}.gold_order_kpis"
 
 
 def _silver_order_metrics(spark: SparkSession) -> tuple[int, int, int]:

@@ -27,6 +27,9 @@ except ImportError as exc:
 @pytest.fixture()
 def spark() -> SparkSession:
     """Provide a Databricks Connect SparkSession for tests."""
+    if os.environ.get("RUN_DATABRICKS_TESTS") != "1":
+        pytest.skip("Databricks integration tests are disabled")
+
     session = DatabricksSession.builder.getOrCreate()
     session.conf.set("spark.sql.session.timeZone", "UTC")
     return session
