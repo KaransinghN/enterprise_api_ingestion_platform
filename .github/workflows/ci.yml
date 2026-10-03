@@ -80,6 +80,9 @@ jobs:
       - name: Validate Databricks bundle
         run: databricks bundle validate -t dev
 
+      - name: Bind existing DEV catalog
+        run: databricks bundle deployment bind dev_catalog enterprise_api_dev --target dev --auto-approve
+
       - name: Deploy Databricks bundle to DEV
         run: databricks bundle deploy -t dev
 
