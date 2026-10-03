@@ -4,11 +4,15 @@ resources:
       name: enterprise-api-silver-${bundle.target}
 
       catalog: ${var.catalog}
-      schema: ${var.schema}
+      schema: ${resources.schemas.silver_schema.name}
 
       serverless: true
 
       continuous: false
+
+      configuration:
+        METADATA_CATALOG: ${var.catalog}
+        METADATA_SCHEMA: ${resources.schemas.config_schema.name}
 
       libraries:
         - file:

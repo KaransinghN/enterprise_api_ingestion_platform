@@ -6,7 +6,7 @@ resources:
       name: enterprise-api-gold-${bundle.target}
 
       catalog: ${var.catalog}
-      schema: ${var.schema}
+      schema: ${resources.schemas.gold_schema.name}
 
       serverless: true
 

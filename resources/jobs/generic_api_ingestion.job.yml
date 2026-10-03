@@ -138,6 +138,12 @@ resources:
         - name: api_name 
           default: ALL 
  
+        - name: catalog
+          default: ${var.catalog}
+
+        - name: environment
+          default: ${var.environment}
+
         - name: landing_catalog 
           default: ${var.landing_catalog} 
  
@@ -145,7 +151,13 @@ resources:
           default: ${var.landing_schema} 
  
         - name: landing_volume 
-          default: ${var.landing_volume} 
+          default: ${var.landing_volume}
+
+        - name: metadata_schema
+          default: ${resources.schemas.config_schema.name}
+
+        - name: audit_schema
+          default: ${resources.schemas.audit_schema.name}
  
       tasks: 
         - task_key: ingest_api 
@@ -158,9 +170,13 @@ resources:
  
             named_parameters: 
               api_name: "{{job.parameters.api_name}}" 
+              catalog: "{{job.parameters.catalog}}"
+              environment: "{{job.parameters.environment}}"
               landing_catalog: "{{job.parameters.landing_catalog}}" 
               landing_schema: "{{job.parameters.landing_schema}}" 
               landing_volume: "{{job.parameters.landing_volume}}"
+              metadata_schema: "{{job.parameters.metadata_schema}}"
+              audit_schema: "{{job.parameters.audit_schema}}"
               job_run_id: "{{job.run_id}}"              
  
         - task_key: bronze_pipeline 

@@ -1,64 +1,30 @@
 # src/enterprise_api_ingestion_platform/main.py
 
 import argparse
+import os
 from importlib.metadata import PackageNotFoundError, version
 
-import enterprise_api_ingestion_platform
 from pyspark.sql import SparkSession
 
-from enterprise_api_ingestion_platform.checkpoint.checkpoint_repository import (
-    CheckpointRepository,
-)
-from enterprise_api_ingestion_platform.checkpoint.checkpoint_service import (
-    CheckpointService,
-)
-from enterprise_api_ingestion_platform.execution.execution_service import (
-    ExecutionService,
-)
-from enterprise_api_ingestion_platform.ingestion.ingestion_service import (
-    IngestionService,
-)
-from enterprise_api_ingestion_platform.landing.landing_service import (
-    LandingService,
-)
-from enterprise_api_ingestion_platform.landing.landing_writer import (
-    LandingWriter,
-)
-from enterprise_api_ingestion_platform.logging.audit_logger import (
-    AuditLogger,
-)
-from enterprise_api_ingestion_platform.logging.logger import (
-    get_logger,
-)
-from enterprise_api_ingestion_platform.metadata.metadata_service import (
-    MetadataService,
-)
-from enterprise_api_ingestion_platform.storage.storage_writer_factory import (
-    StorageWriterFactory,
-)
-from enterprise_api_ingestion_platform.utils.http_client import (
-    HttpClient,
-)
 
 ALL_APIS = "ALL"
 
 
 def parse_arguments() -> argparse.Namespace:
-    """
-    Parse command-line arguments supplied by the Databricks Job.
-    """
-
     parser = argparse.ArgumentParser(
-        description="Enterprise API Ingestion Platform",
+        description="Metadata-driven OpenAPI ingestion entry point."
     )
 
     parser.add_argument(
         "--api_name",
         required=True,
-        help=(
-            "Logical API name configured in metadata "
-            "or ALL."
-        ),
+        help="API name to ingest, or ALL for all enabled APIs.",
+    )
+
+    parser.add_argument(
+        "--catalog",
+        required=True,
+        help="Unity Catalog catalog containing application metadata and audit tables.",
     )
 
     parser.add_argument(
@@ -76,29 +42,95 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "--landing_volume",
         required=True,
-        help="Unity Catalog landing volume name.",
+        help="Unity Catalog managed landing volume.",
     )
-    
+
     parser.add_argument(
-    "--job_run_id",
-    required=False,
-    default=None,
-    help="Databricks Job Run ID.",
+        "--metadata_schema",
+        required=True,
+        help="Unity Catalog schema containing API metadata and checkpoints.",
+    )
+
+    parser.add_argument(
+        "--audit_schema",
+        required=True,
+        help="Unity Catalog schema containing execution audit tables.",
+    )
+
+    parser.add_argument(
+        "--environment",
+        required=True,
+        help="Deployment environment, for example dev, qa, or prod.",
+    )
+
+    parser.add_argument(
+        "--job_run_id",
+        required=False,
+        default=None,
+        help="Databricks job run ID.",
     )
 
     return parser.parse_args()
 
 
-def main() -> None:
+def configure_runtime_environment(
+    args: argparse.Namespace,
+) -> None:
     """
-    Application entry point.
+    Configure runtime environment variables before importing
+    application services that depend on Environment configuration.
     """
+    os.environ["ENVIRONMENT"] = args.environment
+    os.environ["CATALOG"] = args.catalog
+    os.environ["METADATA_SCHEMA"] = args.metadata_schema
+    os.environ["AUDIT_SCHEMA"] = args.audit_schema
 
+
+def main() -> None:
     args = parse_arguments()
+
+    # Configure the runtime environment before importing services
+    # that resolve Environment configuration.
+    configure_runtime_environment(args)
+
+    # Import application services after runtime configuration.
+    from enterprise_api_ingestion_platform.checkpoint.checkpoint_repository import (
+        CheckpointRepository,
+    )
+    from enterprise_api_ingestion_platform.checkpoint.checkpoint_service import (
+        CheckpointService,
+    )
+    from enterprise_api_ingestion_platform.execution.execution_service import (
+    ExecutionService,
+    )
+    from enterprise_api_ingestion_platform.ingestion.ingestion_service import (
+        IngestionService,
+    )
+    from enterprise_api_ingestion_platform.landing.landing_service import (
+        LandingService,
+    )
+    from enterprise_api_ingestion_platform.landing.landing_writer import (
+        LandingWriter,
+    )
+    from enterprise_api_ingestion_platform.logging.audit_logger import (
+        AuditLogger,
+    )
+    from enterprise_api_ingestion_platform.logging.logger import (
+        get_logger,
+    )
+    from enterprise_api_ingestion_platform.metadata.metadata_service import (
+        MetadataService,
+    )
+    from enterprise_api_ingestion_platform.storage.storage_writer_factory import (
+        StorageWriterFactory,
+    )
+    from enterprise_api_ingestion_platform.utils.http_client import (
+        HttpClient,
+    )
 
     spark = (
         SparkSession.builder
-        .appName("Enterprise API Ingestion Platform")
+        .appName("enterprise-api-ingestion")
         .getOrCreate()
     )
 
@@ -106,31 +138,32 @@ def main() -> None:
 
     try:
         package_version = version(
-            "enterprise_api_ingestion_platform",
+            "enterprise_api_ingestion_platform"
         )
     except PackageNotFoundError:
         package_version = "unknown"
 
     logger.info(
-        "Package version: %s",
+        "Starting OpenAPI ingestion: "
+        "api_name=%s, environment=%s, catalog=%s, "
+        "metadata_schema=%s, audit_schema=%s, "
+        "landing_catalog=%s, landing_schema=%s, "
+        "landing_volume=%s, job_run_id=%s, "
+        "package_version=%s",
+        args.api_name,
+        args.environment,
+        args.catalog,
+        args.metadata_schema,
+        args.audit_schema,
+        args.landing_catalog,
+        args.landing_schema,
+        args.landing_volume,
+        args.job_run_id,
         package_version,
     )
 
-    logger.info(
-        "Package location: %s",
-        enterprise_api_ingestion_platform.__file__,
-    )
-
-    logger.info(
-        "LandingWriter methods: %s",
-        [
-            name
-            for name in dir(LandingWriter)
-            if not name.startswith("_")
-        ],
-    )
-
     metadata_service = MetadataService()
+
     http_client = HttpClient()
 
     storage_writer = StorageWriterFactory.create(
@@ -140,22 +173,8 @@ def main() -> None:
         landing_volume=args.landing_volume,
     )
 
-    logger.info(
-        "StorageWriter implementation: %s",
-        type(storage_writer).__name__,
-    )
-
-    logger.info(
-        "StorageWriter module: %s",
-        type(storage_writer).__module__,
-    )
-
     landing_writer = LandingWriter(
-        storage_writer,
-    )
-
-    logger.info(
-        "LandingWriter instance created successfully.",
+        storage_writer=storage_writer,
     )
 
     landing_service = LandingService(
@@ -163,16 +182,12 @@ def main() -> None:
         landing_writer=landing_writer,
     )
 
-    audit_logger = AuditLogger(
-        spark,
-    )
+    audit_logger = AuditLogger(spark)
 
-    checkpoint_repository = CheckpointRepository(
-        spark,
-    )
+    checkpoint_repository = CheckpointRepository(spark)
 
     checkpoint_service = CheckpointService(
-        checkpoint_repository,
+        checkpoint_repository=checkpoint_repository,
     )
 
     ingestion_service = IngestionService(
@@ -188,15 +203,19 @@ def main() -> None:
 
     if args.api_name.upper() == ALL_APIS:
         logger.info(
-            "Executing all enabled APIs.",
+            "Executing ingestion for all enabled APIs: job_run_id=%s",
+            args.job_run_id,
         )
+
         execution_service.execute_all(
             job_run_id=args.job_run_id,
         )
+
     else:
         logger.info(
-            "Executing API: %s",
+            "Executing ingestion for API '%s': job_run_id=%s",
             args.api_name,
+            args.job_run_id,
         )
 
         metadata = metadata_service.get_metadata(
@@ -204,12 +223,14 @@ def main() -> None:
         )
 
         execution_service.execute_api(
-            metadata,
+            metadata=metadata,
             job_run_id=args.job_run_id,
         )
 
         logger.info(
-            "Execution completed successfully.",
+            "Completed ingestion for API '%s': job_run_id=%s",
+            args.api_name,
+            args.job_run_id,
         )
 
 

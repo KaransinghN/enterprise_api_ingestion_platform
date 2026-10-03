@@ -1,0 +1,31 @@
+#resources/jobs/metadata_initialization.job.yml
+resources:
+  jobs:
+    metadata_initialization_job:
+      name: metadata-initialization-${bundle.target}
+
+      environments:
+        - environment_key: metadata_initialization_serverless
+          spec:
+            environment_version: "3"
+            dependencies:
+              - ../../dist/*.whl
+
+      parameters:
+        - name: catalog
+          default: ${var.catalog}
+        - name: metadata_schema
+          default: ${resources.schemas.config_schema.name}
+        - name: audit_schema
+          default: ${resources.schemas.audit_schema.name}
+
+      tasks:
+        - task_key: initialize_metadata
+          environment_key: metadata_initialization_serverless
+          python_wheel_task:
+            package_name: enterprise_api_ingestion_platform
+            entry_point: initialize_metadata
+            named_parameters:
+              catalog: "{{job.parameters.catalog}}"
+              metadata_schema: "{{job.parameters.metadata_schema}}"
+              audit_schema: "{{job.parameters.audit_schema}}"

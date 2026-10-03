@@ -1,19 +1,10 @@
-# src/enterprise_api_ingestion_platform/silver/silver_pipeline.py
-
-from __future__ import annotations
+#src/enterprise_api_ingestion_platform/silver/silver_pipeline.py
 
 from dataclasses import dataclass
 
 from pyspark import pipelines as dp
-from pyspark.sql import DataFrame, SparkSession, Window
-from pyspark.sql.functions import (
-    col,
-    current_timestamp,
-    row_number,
-    to_date,
-    to_json,
-)
-from pyspark.sql.types import DecimalType
+from pyspark.sql import DataFrame, SparkSession
+from pyspark.sql.functions import col
 
 from transformations import (
     transform_dim_customer,
@@ -21,17 +12,35 @@ from transformations import (
     transform_fact_order,
 )
 
+def _get_spark() -> SparkSession:
+    """
+    Returns the active Spark session.
+    """
+    spark_session = SparkSession.getActiveSession()
 
-METADATA_TABLE = "workspace.config.api_metadata"
+    if spark_session is None:
+        raise RuntimeError(
+            "No active Spark session is available."
+        )
 
-SALESFORCE_API_ID = "salesforce_opportunity"
+    return spark_session
+
+
+spark = _get_spark()
+
+METADATA_CATALOG = spark.conf.get("METADATA_CATALOG")
+METADATA_SCHEMA = spark.conf.get("METADATA_SCHEMA")
+
+METADATA_TABLE = (
+    f"{METADATA_CATALOG}."
+    f"{METADATA_SCHEMA}."
+    "api_metadata"
+)
+
+
 OPENAPI_USERS_API_ID = "openapi_users"
 OPENAPI_PRODUCTS_API_ID = "openapi_products"
 OPENAPI_ORDERS_API_ID = "openapi_orders"
-
-LATEST_TABLE = "salesforce_opportunity_latest"
-SCD2_TABLE = "salesforce_opportunity_scd2"
-SALESFORCE_SILVER_TABLE = "salesforce_opportunity"
 
 CUSTOMER_TABLE = "dim_customer"
 PRODUCT_TABLE = "dim_product"
@@ -54,7 +63,6 @@ class SilverRoute:
         """
         Returns the fully qualified Bronze table name.
         """
-
         return (
             f"{self.bronze_catalog}."
             f"{self.bronze_schema}."
@@ -92,21 +100,6 @@ def _validate_identifier(
         )
 
     return normalized
-
-
-def _get_spark() -> SparkSession:
-    """
-    Returns the active Spark session.
-    """
-
-    spark_session = SparkSession.getActiveSession()
-
-    if spark_session is None:
-        raise RuntimeError(
-            "No active Spark session is available."
-        )
-
-    return spark_session
 
 
 def _load_silver_routes() -> list[SilverRoute]:
@@ -186,11 +179,6 @@ def _get_route(
 
 SILVER_ROUTES = _load_silver_routes()
 
-SALESFORCE_ROUTE = _get_route(
-    routes=SILVER_ROUTES,
-    api_id=SALESFORCE_API_ID,
-)
-
 OPENAPI_USERS_ROUTE = _get_route(
     routes=SILVER_ROUTES,
     api_id=OPENAPI_USERS_API_ID,
@@ -208,226 +196,49 @@ OPENAPI_ORDERS_ROUTE = _get_route(
 
 
 @dp.materialized_view(
-    name=LATEST_TABLE,
-    comment=(
-        "Latest Salesforce Opportunity snapshot prepared for "
-        "SCD Type 2 processing."
-    ),
-)
-def salesforce_opportunity_latest() -> DataFrame:
-    """
-    Produces one deterministic source record per Salesforce Opportunity.
-
-    The newest Bronze ingestion record wins when multiple records
-    exist for the same Salesforce business key.
-    """
-
-    spark_session = _get_spark()
-
-    bronze_df = spark_session.read.table(
-        SALESFORCE_ROUTE.bronze_fqn,
-    )
-
-    window = Window.partitionBy(
-        "Id",
-    ).orderBy(
-        col("ingestion_timestamp").desc(),
-        col("Id").desc(),
-    )
-
-    return (
-        bronze_df
-        .withColumn(
-            "_row_number",
-            row_number().over(window),
-        )
-        .filter(
-            col("_row_number") == 1,
-        )
-        .drop(
-            "_row_number",
-        )
-        .select(
-            col("Id").alias("opportunity_id"),
-            col("Name").alias("name"),
-            col("Amount")
-            .cast(
-                DecimalType(18, 2),
-            )
-            .alias("amount"),
-            col("StageName").alias("stage_name"),
-            to_date(
-                col("CloseDate"),
-            ).alias("close_date"),
-            to_json(
-                col("attributes"),
-            ).alias("source_attributes"),
-            col("ingestion_timestamp"),
-        )
-        .withColumn(
-            "processed_timestamp",
-            current_timestamp(),
-        )
-    )
-
-
-dp.create_streaming_table(
-    name=SCD2_TABLE,
-    comment=(
-        "Internal SCD Type 2 history for Salesforce Opportunities."
-    ),
-    schema="""
-        opportunity_id STRING,
-        name STRING,
-        amount DECIMAL(18,2),
-        stage_name STRING,
-        close_date DATE,
-        source_attributes STRING,
-        ingestion_timestamp TIMESTAMP,
-        processed_timestamp TIMESTAMP,
-        __START_AT TIMESTAMP,
-        __END_AT TIMESTAMP
-    """,
-)
-
-
-dp.create_auto_cdc_from_snapshot_flow(
-    target=SCD2_TABLE,
-    source=LATEST_TABLE,
-    keys=[
-        "opportunity_id",
-    ],
-    stored_as_scd_type="2",
-    track_history_column_list=[
-        "name",
-        "amount",
-        "stage_name",
-        "close_date",
-        "source_attributes",
-    ],
-)
-
-
-@dp.materialized_view(
-    name=SALESFORCE_SILVER_TABLE,
-    comment=(
-        "Silver SCD Type 2 table for Salesforce Opportunities."
-    ),
-)
-def salesforce_opportunity_silver() -> DataFrame:
-    """
-    Presents the internal SCD Type 2 history as the public Silver model.
-
-    The surrogate key is generated deterministically from the complete
-    historical record ordering.
-    """
-
-    spark_session = _get_spark()
-
-    scd2_df = spark_session.read.table(
-        SCD2_TABLE,
-    )
-
-    surrogate_key_window = Window.orderBy(
-        col("opportunity_id").asc(),
-        col("__START_AT").asc(),
-        col("__END_AT").asc_nulls_last(),
-    )
-
-    return (
-        scd2_df
-        .withColumn(
-            "opportunity_sk",
-            row_number().over(
-                surrogate_key_window,
-            ).cast("long"),
-        )
-        .select(
-            "opportunity_sk",
-            "opportunity_id",
-            "name",
-            "amount",
-            "stage_name",
-            "close_date",
-            "source_attributes",
-            "ingestion_timestamp",
-            "processed_timestamp",
-            col("__START_AT").alias(
-                "effective_start_ts",
-            ),
-            col("__END_AT").alias(
-                "effective_end_ts",
-            ),
-            (
-                col("__END_AT").isNull()
-            ).alias(
-                "is_active",
-            ),
-        )
-    )
-
-
-@dp.materialized_view(
     name=CUSTOMER_TABLE,
-    comment=(
-        "Silver customer dimension derived from OpenAPI Users."
-    ),
+    comment="Silver customer dimension derived from OpenAPI Users.",
 )
 def dim_customer() -> DataFrame:
     """
-    Produces the SCD Type 1 customer dimension.
+    Produces the customer dimension.
     """
 
-    spark_session = _get_spark()
-
-    bronze_df = spark_session.read.table(
-        OPENAPI_USERS_ROUTE.bronze_fqn,
+    bronze_df = _get_spark().read.table(
+        OPENAPI_USERS_ROUTE.bronze_fqn
     )
 
-    return transform_dim_customer(
-        bronze_df,
-    )
+    return transform_dim_customer(bronze_df)
 
 
 @dp.materialized_view(
     name=PRODUCT_TABLE,
-    comment=(
-        "Silver product dimension derived from OpenAPI Products."
-    ),
+    comment="Silver product dimension derived from OpenAPI Products.",
 )
 def dim_product() -> DataFrame:
     """
-    Produces the SCD Type 1 product dimension.
+    Produces the product dimension.
     """
 
-    spark_session = _get_spark()
-
-    bronze_df = spark_session.read.table(
-        OPENAPI_PRODUCTS_ROUTE.bronze_fqn,
+    bronze_df = _get_spark().read.table(
+        OPENAPI_PRODUCTS_ROUTE.bronze_fqn
     )
 
-    return transform_dim_product(
-        bronze_df,
-    )
+    return transform_dim_product(bronze_df)
 
 
 def _read_fact_order_source() -> DataFrame:
     """
-    Reads the existing Bronze order snapshot source.
+    Reads the Bronze orders source.
     """
 
-    spark_session = _get_spark()
-
-    return spark_session.read.table(
-        OPENAPI_ORDERS_ROUTE.bronze_fqn,
+    return _get_spark().read.table(
+        OPENAPI_ORDERS_ROUTE.bronze_fqn
     )
-
 
 @dp.materialized_view(
     name=ORDER_TABLE,
-    comment=(
-        "Silver order-line fact derived from OpenAPI Orders."
-    ),
+    comment="Silver order-line fact derived from OpenAPI Orders.",
 )
 @dp.expect_or_fail(
     "valid_order_id",
@@ -454,16 +265,16 @@ def fact_order() -> DataFrame:
     Produces one Silver fact row per product line within an order.
     """
 
-    bronze_df = _read_fact_order_source()
-
     spark_session = _get_spark()
 
+    bronze_df = _read_fact_order_source()
+
     customer_df = spark_session.read.table(
-        CUSTOMER_TABLE,
+        CUSTOMER_TABLE
     )
 
     product_df = spark_session.read.table(
-        PRODUCT_TABLE,
+        PRODUCT_TABLE
     )
 
     return transform_fact_order(

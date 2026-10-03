@@ -1,3 +1,4 @@
+#Project.toml
 [project]
 name = "enterprise_api_ingestion_platform"
 version = "0.0.18"
@@ -22,6 +23,7 @@ dev = [
 [project.scripts]
 main = "enterprise_api_ingestion_platform.main:main"
 send_ingestion_notification = "enterprise_api_ingestion_platform.notification.main:main"
+initialize_metadata = "enterprise_api_ingestion_platform.metadata.metadata_initializer:main"
 
 [build-system]
 requires = ["hatchling"]

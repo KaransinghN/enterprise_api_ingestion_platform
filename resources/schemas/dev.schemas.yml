@@ -1,0 +1,31 @@
+resources:
+  schemas:
+    config_schema:
+      name: config
+      catalog_name: enterprise_api_dev
+      comment: Configuration metadata for the OpenAPI ingestion platform
+
+    landing_schema:
+      name: landing
+      catalog_name: enterprise_api_dev
+      comment: Raw API landing files and ingestion volume
+
+    bronze_schema:
+      name: bronze
+      catalog_name: enterprise_api_dev
+      comment: Bronze layer for raw ingested API data
+
+    silver_schema:
+      name: silver
+      catalog_name: enterprise_api_dev
+      comment: Silver layer for validated and standardized API data
+
+    gold_schema:
+      name: gold
+      catalog_name: enterprise_api_dev
+      comment: Gold layer for curated API data products
+
+    audit_schema:
+      name: audit
+      catalog_name: enterprise_api_dev
+      comment: Operational audit and execution metadata

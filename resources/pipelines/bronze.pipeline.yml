@@ -1,12 +1,10 @@
-# resources/pipelines/bronze.pipeline.yml
-
 resources:
   pipelines:
     bronze_pipeline:
       name: enterprise-api-bronze-${bundle.target}
 
       catalog: ${var.catalog}
-      schema: ${var.schema}
+      schema: ${resources.schemas.bronze_schema.name}
 
       serverless: true
 
@@ -14,11 +12,11 @@ resources:
 
       configuration:
         LANDING_CATALOG: ${var.landing_catalog}
-        LANDING_SCHEMA: ${var.landing_schema}
+        LANDING_SCHEMA: ${resources.schemas.landing_schema.name}
         LANDING_VOLUME: ${var.landing_volume}
 
         METADATA_CATALOG: ${var.catalog}
-        METADATA_SCHEMA: config
+        METADATA_SCHEMA: ${resources.schemas.config_schema.name}
 
       libraries:
         - file:

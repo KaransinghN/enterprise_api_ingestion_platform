@@ -9,7 +9,9 @@ from enterprise_api_ingestion_platform.common.exceptions import (
     DuplicateMetadataException,
     MetadataNotFoundException,
 )
+from enterprise_api_ingestion_platform.config.environment import environment
 from enterprise_api_ingestion_platform.models.api_metadata import ApiMetadata
+
 
 
 class MetadataReader:
@@ -20,12 +22,20 @@ class MetadataReader:
     def __init__(self, spark: SparkSession):
         self.spark = spark
 
+    @property
+    def metadata_table(self) -> str:
+        return (
+            f"{environment.catalog}."
+            f"{environment.metadata_schema}."
+            "api_metadata"
+        )
+
     def get_metadata(self, api_name: str) -> ApiMetadata:
         """
         Return enabled metadata for a single API.
         """
         dataframe = (
-            self.spark.table("workspace.config.api_metadata")
+            self.spark.table(self.metadata_table)
             .filter(col("api_name") == api_name)
             .filter(col("enabled"))
         )
@@ -52,7 +62,7 @@ class MetadataReader:
         Return all enabled APIs configured for a schedule.
         """
         rows = (
-            self.spark.table("workspace.config.api_metadata")
+            self.spark.table(self.metadata_table)
             .filter(col("enabled"))
             .filter(col("schedule") == schedule)
             .collect()

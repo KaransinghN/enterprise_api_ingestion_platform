@@ -15,7 +15,7 @@ def test_table_name_uses_environment_configuration() -> None:
 
     repository = CheckpointRepository(spark)
 
-    assert repository.table_name == "workspace.config.api_checkpoint"
+    assert repository.table_name == "enterprise_api_dev.config.api_checkpoint"
 
 
 def test_get_last_success_checkpoint_returns_latest_checkpoint() -> None:
@@ -110,7 +110,7 @@ def test_save_checkpoint_appends_to_delta() -> None:
     (
         dataframe.write.format.return_value.mode.return_value.saveAsTable
     ).assert_called_once_with(
-        "workspace.config.api_checkpoint"
+        "enterprise_api_dev.config.api_checkpoint"
     )
 
 

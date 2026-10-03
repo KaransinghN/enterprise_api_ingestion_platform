@@ -43,7 +43,7 @@ def gold_order_kpis() -> DataFrame:
     session = _require_spark()
 
     fact_order_df = session.read.table(
-        "fact_order",
+        "enterprise_api_dev.dev_karansingh_n_silver.fact_order",
     )
 
     return transform_gold_order_kpis(
@@ -70,7 +70,7 @@ def gold_customer_sales() -> DataFrame:
     )
 
     dim_customer_df = session.read.table(
-        "dim_customer",
+        "enterprise_api_dev.dev_karansingh_n_silver.dim_customer",
     )
 
     return transform_gold_customer_sales(
@@ -94,11 +94,11 @@ def gold_product_sales() -> DataFrame:
     session = _require_spark()
 
     fact_order_df = session.read.table(
-        "fact_order",
+        "enterprise_api_dev.dev_karansingh_n_silver.fact_order",
     )
 
     dim_product_df = session.read.table(
-        "dim_product",
+        "enterprise_api_dev.dev_karansingh_n_silver.dim_product",
     )
 
     return transform_gold_product_sales(

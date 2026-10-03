@@ -32,6 +32,12 @@ variables:
   landing_volume:
     description: Unity Catalog landing volume name
 
+  metadata_schema:
+    description: Unity Catalog schema containing API metadata and checkpoints
+
+  audit_schema:
+    description: Unity Catalog schema containing execution audit tables
+
 targets:
   dev:
     mode: development
@@ -41,19 +47,22 @@ targets:
       host: https://dbc-7b9faa8e-9cac.cloud.databricks.com
 
     variables:
-      catalog: workspace
-      schema: ${workspace.current_user.short_name}
+      catalog: enterprise_api_dev
+      schema: bronze
       environment: dev
 
-      landing_catalog: workspace
+      landing_catalog: enterprise_api_dev
       landing_schema: landing
       landing_volume: landing_volume
+      metadata_schema: ${resources.schemas.config_schema.name}
+      audit_schema: ${resources.schemas.audit_schema.name}
 
   prod:
     mode: production
 
     workspace:
-      host: https://dbc-09b52ae8-23ca.cloud.databricks.com
+      host: https://dbc-7b9faa8e-9cac.cloud.databricks.com
+
       root_path: /Workspace/Users/karan_vsk@hotmail.com/.bundle/${bundle.name}/${bundle.target}
 
     variables:
@@ -64,6 +73,7 @@ targets:
       landing_catalog: workspace
       landing_schema: landing
       landing_volume: landing_volume
+
 
     permissions:
       - user_name: karan_vsk@hotmail.com

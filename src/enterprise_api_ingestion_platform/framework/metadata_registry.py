@@ -1,3 +1,5 @@
+#src\enterprise_api_ingestion_platform\framework\metadata_registry.py
+
 from enterprise_api_ingestion_platform.models.api_metadata import ApiMetadata
 
 
