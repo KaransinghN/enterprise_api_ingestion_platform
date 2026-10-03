@@ -83,6 +83,9 @@ jobs:
       - name: Bind existing DEV catalog
         run: databricks bundle deployment bind dev_catalog enterprise_api_dev --target dev --auto-approve
 
+      - name: Plan Databricks bundle for DEV
+        run: databricks bundle plan -t dev -o json
+
       - name: Deploy Databricks bundle to DEV
         run: databricks bundle deploy -t dev
 
