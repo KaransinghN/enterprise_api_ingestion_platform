@@ -2,5 +2,5 @@
 resources:
   catalogs:
     dev_catalog:
-      name: enterprise_api_dev
-      comment: Development catalog for the OpenAPI ingestion platform
+      name: ${var.catalog}
+      comment: Catalog for the OpenAPI ingestion platform

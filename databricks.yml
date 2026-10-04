@@ -61,20 +61,25 @@ targets:
     mode: production
 
     workspace:
-      host: https://dbc-7b9faa8e-9cac.cloud.databricks.com
+      host: https://dbc-83c2a237-8434.cloud.databricks.com
 
-      root_path: /Workspace/Users/karan_vsk@hotmail.com/.bundle/${bundle.name}/${bundle.target}
+      root_path: /Workspace/Users/f5fb7304-bf5c-4716-a69c-1f99f8f67c14/.bundle/${bundle.name}/${bundle.target}
 
     variables:
-      catalog: workspace
-      schema: default
+      catalog: enterprise_api_prod
+      schema: bronze
       environment: prod
 
-      landing_catalog: workspace
+      landing_catalog: enterprise_api_prod
       landing_schema: landing
       landing_volume: landing_volume
+      metadata_schema: ${resources.schemas.config_schema.name}
+      audit_schema: ${resources.schemas.audit_schema.name}
 
 
     permissions:
-      - user_name: karan_vsk@hotmail.com
+      - user_name: karansingh.n@brillio.com
+        level: CAN_MANAGE
+
+      - service_principal_name: f5fb7304-bf5c-4716-a69c-1f99f8f67c14
         level: CAN_MANAGE

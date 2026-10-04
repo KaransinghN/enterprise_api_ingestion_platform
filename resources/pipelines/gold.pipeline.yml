@@ -1,4 +1,4 @@
-# resources/pipelines/gold.pipeline.yml
+#resources/pipelines/gold.pipeline.yml
 
 resources:
   pipelines:
@@ -11,6 +11,10 @@ resources:
       serverless: true
 
       continuous: false
+
+      configuration:
+        SILVER_CATALOG: ${var.catalog}
+        SILVER_SCHEMA: ${resources.schemas.silver_schema.name}
 
       libraries:
         - file:

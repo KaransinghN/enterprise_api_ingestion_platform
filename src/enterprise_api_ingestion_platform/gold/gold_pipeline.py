@@ -14,6 +14,21 @@ from transformations import (
 
 spark = SparkSession.getActiveSession()
 
+SILVER_CATALOG = spark.conf.get("SILVER_CATALOG")
+SILVER_SCHEMA = spark.conf.get("SILVER_SCHEMA")
+
+SILVER_FACT_ORDER_TABLE = (
+    f"{SILVER_CATALOG}.{SILVER_SCHEMA}.fact_order"
+)
+
+SILVER_DIM_CUSTOMER_TABLE = (
+    f"{SILVER_CATALOG}.{SILVER_SCHEMA}.dim_customer"
+)
+
+SILVER_DIM_PRODUCT_TABLE = (
+    f"{SILVER_CATALOG}.{SILVER_SCHEMA}.dim_product"
+)
+
 
 def _require_spark() -> SparkSession:
     """
@@ -43,7 +58,7 @@ def gold_order_kpis() -> DataFrame:
     session = _require_spark()
 
     fact_order_df = session.read.table(
-        "enterprise_api_dev.dev_karansingh_n_silver.fact_order",
+        SILVER_FACT_ORDER_TABLE,
     )
 
     return transform_gold_order_kpis(
@@ -70,7 +85,7 @@ def gold_customer_sales() -> DataFrame:
     )
 
     dim_customer_df = session.read.table(
-        "enterprise_api_dev.dev_karansingh_n_silver.dim_customer",
+        SILVER_DIM_CUSTOMER_TABLE,
     )
 
     return transform_gold_customer_sales(
@@ -94,11 +109,11 @@ def gold_product_sales() -> DataFrame:
     session = _require_spark()
 
     fact_order_df = session.read.table(
-        "enterprise_api_dev.dev_karansingh_n_silver.fact_order",
+        SILVER_FACT_ORDER_TABLE,
     )
 
     dim_product_df = session.read.table(
-        "enterprise_api_dev.dev_karansingh_n_silver.dim_product",
+        SILVER_DIM_PRODUCT_TABLE,
     )
 
     return transform_gold_product_sales(

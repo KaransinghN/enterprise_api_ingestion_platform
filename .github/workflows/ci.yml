@@ -99,3 +99,53 @@ jobs:
 
       - name: Run Databricks integration tests
         run: uv run pytest tests/gold tests/silver -q
+
+  deploy-prod:
+    name: Deploy Databricks Bundle to PROD
+    needs: integration-tests
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: prod
+
+    permissions:
+      id-token: write
+      contents: read
+
+    env:
+      DATABRICKS_AUTH_TYPE: github-oidc
+      DATABRICKS_HOST: https://dbc-83c2a237-8434.cloud.databricks.com
+      DATABRICKS_CLIENT_ID: f5fb7304-bf5c-4716-a69c-1f99f8f67c14
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Install Databricks CLI
+        uses: databricks/setup-cli@v1.8.0
+        with:
+          version: 1.18.0
+
+      - name: Verify Databricks authentication
+        run: databricks current-user me
+
+      - name: Validate Databricks bundle
+        run: databricks bundle validate -t prod
+
+      - name: Plan Databricks bundle for PROD
+        run: databricks bundle plan -t prod -o json
+
+      - name: Deploy Databricks bundle to PROD
+        run: databricks bundle deploy -t prod
