@@ -138,6 +138,15 @@ jobs:
         with:
           version: 1.18.0
 
+      - name: Diagnose Databricks bundle configuration
+        run: |
+          echo "PWD=$(pwd)"
+          echo "DATABRICKS_HOST=$DATABRICKS_HOST"
+          echo "DATABRICKS_CONFIG_PROFILE=${DATABRICKS_CONFIG_PROFILE:-<unset>}"
+          echo "DATABRICKS_CONFIG_FILE=${DATABRICKS_CONFIG_FILE:-<unset>}"
+          echo "--- bundle settings files ---"
+          find .databricks -maxdepth 3 -type f -print 2>/dev/null || true
+
       - name: Verify Databricks authentication
         run: databricks current-user me
 
