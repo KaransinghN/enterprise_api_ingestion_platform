@@ -1,6 +1,0 @@
-#dev.catalog.yml
-resources:
-  catalogs:
-    dev_catalog:
-      name: ${var.catalog}
-      comment: Catalog for the OpenAPI ingestion platform
