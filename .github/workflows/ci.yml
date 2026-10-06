@@ -158,6 +158,14 @@ jobs:
       - name: Validate Databricks bundle
         run: databricks bundle validate -t prod
 
+      - name: Inspect PROD resolved permissions
+        run: |
+          databricks bundle validate -t prod -o json > /tmp/prod-validate.json
+          echo "--- Resolved PROD permissions ---"
+          grep -A4 -B2 '"IS_OWNER"' /tmp/prod-validate.json || true
+          echo "--- Resolved PROD CAN_MANAGE entries ---"
+          grep -A3 -B1 '"CAN_MANAGE"' /tmp/prod-validate.json || true
+
       - name: Plan Databricks bundle for PROD
         run: databricks bundle plan -t prod -o json
 
