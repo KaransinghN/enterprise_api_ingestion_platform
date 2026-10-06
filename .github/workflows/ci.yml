@@ -142,10 +142,14 @@ jobs:
         run: |
           echo "PWD=$(pwd)"
           echo "DATABRICKS_HOST=$DATABRICKS_HOST"
+          echo "DATABRICKS_AUTH_TYPE=$DATABRICKS_AUTH_TYPE"
+          echo "DATABRICKS_CLIENT_ID=$DATABRICKS_CLIENT_ID"
           echo "DATABRICKS_CONFIG_PROFILE=${DATABRICKS_CONFIG_PROFILE:-<unset>}"
           echo "DATABRICKS_CONFIG_FILE=${DATABRICKS_CONFIG_FILE:-<unset>}"
           echo "--- bundle settings files ---"
           find .databricks -maxdepth 3 -type f -print 2>/dev/null || true
+          echo "--- Databricks CLI authentication description ---"
+          databricks auth describe
 
       - name: Verify Databricks authentication
         run: databricks current-user me
