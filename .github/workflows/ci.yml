@@ -152,6 +152,7 @@ jobs:
           databricks auth describe
 
       - name: Verify Databricks authentication
+        working-directory: /tmp
         run: databricks current-user me
 
       - name: Validate Databricks bundle
