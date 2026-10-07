@@ -45,6 +45,7 @@ def _require_spark() -> SparkSession:
 
 @dp.materialized_view(
     name="gold_order_kpis",
+    cluster_by_auto=True,
     comment=(
         "Gold order-level KPIs derived from the Silver fact_order "
         "order-line fact."
@@ -68,6 +69,7 @@ def gold_order_kpis() -> DataFrame:
 
 @dp.materialized_view(
     name="gold_customer_sales",
+    cluster_by_auto=True,
     comment=(
         "Gold customer sales metrics derived from gold_order_kpis "
         "and dim_customer."
@@ -96,6 +98,7 @@ def gold_customer_sales() -> DataFrame:
 
 @dp.materialized_view(
     name="gold_product_sales",
+    cluster_by_auto=True,
     comment=(
         "Gold product sales metrics derived from the Silver fact_order "
         "order-line fact and dim_product."

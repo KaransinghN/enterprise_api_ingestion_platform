@@ -197,6 +197,7 @@ OPENAPI_ORDERS_ROUTE = _get_route(
 
 @dp.materialized_view(
     name=CUSTOMER_TABLE,
+    cluster_by_auto=True,
     comment="Silver customer dimension derived from OpenAPI Users.",
 )
 def dim_customer() -> DataFrame:
@@ -213,6 +214,7 @@ def dim_customer() -> DataFrame:
 
 @dp.materialized_view(
     name=PRODUCT_TABLE,
+    cluster_by_auto=True,
     comment="Silver product dimension derived from OpenAPI Products.",
 )
 def dim_product() -> DataFrame:
@@ -238,6 +240,7 @@ def _read_fact_order_source() -> DataFrame:
 
 @dp.materialized_view(
     name=ORDER_TABLE,
+    cluster_by_auto=True,
     comment="Silver order-line fact derived from OpenAPI Orders.",
 )
 @dp.expect_or_fail(
