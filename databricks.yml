@@ -65,6 +65,9 @@ targets:
 
       root_path: /Workspace/Users/f5fb7304-bf5c-4716-a69c-1f99f8f67c14/.bundle/${bundle.name}/${bundle.target}
 
+    run_as:
+      service_principal_name: f5fb7304-bf5c-4716-a69c-1f99f8f67c14
+
     variables:
       catalog: enterprise_api_prod
       schema: bronze
@@ -77,9 +80,3 @@ targets:
       audit_schema: ${resources.schemas.audit_schema.name}
 
 
-    permissions:
-      - user_name: karansingh.n@brillio.com
-        level: CAN_MANAGE
-
-      - service_principal_name: f5fb7304-bf5c-4716-a69c-1f99f8f67c14
-        level: CAN_MANAGE
