@@ -1,3 +1,4 @@
+#resources\pipelines\silver.pipeline.yml
 resources:
   pipelines:
     silver_pipeline:

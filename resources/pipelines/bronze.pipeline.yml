@@ -12,7 +12,7 @@ resources:
 
       configuration:
         LANDING_CATALOG: ${var.landing_catalog}
-        LANDING_SCHEMA: ${resources.schemas.landing_schema.name}
+        LANDING_SCHEMA: ${var.landing_schema}
         LANDING_VOLUME: ${var.landing_volume}
 
         METADATA_CATALOG: ${var.catalog}

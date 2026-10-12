@@ -52,7 +52,7 @@ targets:
       environment: dev
 
       landing_catalog: enterprise_api_dev
-      landing_schema: ${resources.schemas.landing_schema.name}
+      landing_schema: dev_karansingh_n_landing
       landing_volume: landing_volume
       metadata_schema: ${resources.schemas.config_schema.name}
       audit_schema: ${resources.schemas.audit_schema.name}

@@ -442,6 +442,9 @@ complete and unit-tested.
 The currently enabled API metadata uses `FULL` loads. Live incremental
 API end-to-end validation is therefore listed as a planned enhancement.
 
+The checkpoint framework is retained so incremental APIs can use persisted
+cursor or watermark state when those load modes are enabled.
+
 ---
 
 ## Current metadata examples
@@ -619,6 +622,15 @@ uv run ruff check .
 
 The project is deployed using Databricks Asset Bundles.
 
+The repository has separate DEV and PROD bundle targets. PROD deployments
+run through GitHub Actions using GitHub OIDC authentication and the
+dedicated deployment service principal. PROD bundle resources run as that
+service principal rather than as the deploying human user.
+
+The DEV catalog is pre-existing and is not managed as a catalog resource by
+the bundle. Environment-specific schemas and the managed landing volume are
+resolved through bundle variables and resource references.
+
 ### Validate
 
 ```powershell
@@ -629,6 +641,12 @@ databricks bundle validate -t dev
 
 ```powershell
 databricks bundle deploy -t dev
+```
+
+For PROD, the same bundle is deployed with:
+
+```powershell
+databricks bundle deploy -t prod
 ```
 
 ### View deployment summary
@@ -672,6 +690,10 @@ stage.
 The development schedule is intentionally kept paused while development
 and validation are performed manually.
 
+The ingestion workflow is currently validated through successful manual
+runs in both DEV and PROD. The production deployment path is automated
+through GitHub Actions.
+
 ---
 
 ## Testing status
@@ -685,12 +707,12 @@ Databricks integration testing.
 uv run ruff check .
 All checks passed
 
-uv run pytest -q --ignore=tests/silver --ignore=tests/gold
-89 passed
-
-uv run pytest -q tests/landing tests/ingestion
-6 passed
+uv run pytest -q
+92 passed, 32 skipped
 ```
+
+The complete test suite has been run successfully after the current
+implementation changes.
 
 The Silver and Gold integration tests require live Databricks compute for
 `DatabricksSession` initialization. When that runtime is not available
@@ -786,6 +808,55 @@ immediately.
 
 ---
 
+## Current platform status
+
+The current implementation is operational in both DEV and PROD.
+
+### Deployment and CI/CD
+
+- Databricks Asset Bundles validate and deploy successfully for DEV and PROD.
+- GitHub Actions deploys PROD using GitHub OIDC authentication.
+- PROD bundle resources run as the dedicated GitHub Actions service principal.
+- The latest source changes for automatic liquid clustering are committed and
+  deployed to both environments.
+- The DEV and PROD bundle plans are currently clean with no resource drift.
+
+### Ingestion validation
+
+Successful end-to-end ingestion runs have been completed in both environments.
+
+Representative latest successful runs processed the configured OpenAPI source
+data through ingestion, Bronze, Silver, and Gold. The workflow completed with
+1,316 rows read and 403 rows written across 3 Gold outputs.
+
+### Performance optimization
+
+Unity Catalog predictive optimization is enabled through the metastore for both
+environment catalogs.
+
+The Silver and Gold materialized views are configured with:
+
+```python
+cluster_by_auto=True
+```
+
+for automatic liquid-clustering column selection by Databricks.
+
+This configuration is applied to:
+
+- Silver: `dim_customer`
+- Silver: `dim_product`
+- Silver: `fact_order`
+- Gold: `gold_order_kpis`
+- Gold: `gold_customer_sales`
+- Gold: `gold_product_sales`
+
+Predictive optimization and automatic liquid clustering are intended to provide
+the current table-maintenance and layout strategy without introducing a
+separate application-level optimization job.
+
+---
+
 ## Production-readiness status
 
 ### Completed
@@ -838,6 +909,9 @@ immediately.
 * Databricks Asset Bundle validation
 * Databricks Asset Bundle deployment
 * Databricks job orchestration
+* GitHub Actions CI/CD with GitHub OIDC authentication
+* DEV and PROD deployment targets
+* PROD service-principal execution
 * Ingestion → Bronze → Silver → Gold dependency chain
 * Unity Catalog table architecture
 * Application-level execution audit logging
@@ -852,6 +926,8 @@ immediately.
 * Git version control
 * GitHub repository integration
 * Public-portfolio documentation
+* Predictive optimization inherited from Unity Catalog
+* Automatic liquid clustering configured for Silver and Gold materialized views
 
 ### Planned enhancements
 
@@ -862,8 +938,10 @@ immediately.
 * Automatic schema-change detection and schema-version management
 * Live incremental API end-to-end validation
 * Production deployment hardening
-* CI/CD automation with GitHub Actions
+* Richer operational monitoring and alerting
 * Extended documentation and operational runbooks
+* Live incremental API end-to-end validation
+* Broader data-quality and reconciliation coverage as new APIs are onboarded
 
 ## Example end-to-end result
 

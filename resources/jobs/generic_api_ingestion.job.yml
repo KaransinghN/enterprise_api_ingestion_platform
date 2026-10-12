@@ -1,7 +1,24 @@
+
 # resources/jobs/generic_api_ingestion.job.yml
+#
+# Architecture:
+#
+#   Job 1: generic_api_ingestion_job
+#       API ingestion -> landing Unity Catalog volume
+#
+#   Job 2: landing_file_processing_job
+#       New file in landing volume -> Bronze -> Silver -> Gold
+#
+# IMPORTANT:
+# The file-arrival trigger belongs to Job 2, not Job 1.
+# This prevents Job 1 from triggering itself when it writes files.
 
 resources:
   jobs:
+
+    # ============================================================
+    # JOB 1: GENERIC API INGESTION
+    # ============================================================
     generic_api_ingestion_job:
       name: generic_api_ingestion_job
 
@@ -11,7 +28,7 @@ resources:
         enabled: true
 
       # ============================================================
-      # JOB CLUSTER OPTION â€” FUTURE USE
+      # JOB CLUSTER OPTION — FUTURE USE
       # ============================================================
       #
       # The current job uses serverless compute.
@@ -178,27 +195,3 @@ resources:
               metadata_schema: "{{job.parameters.metadata_schema}}"
               audit_schema: "{{job.parameters.audit_schema}}"
               job_run_id: "{{job.run_id}}"
-
-        - task_key: bronze_pipeline
-
-          depends_on:
-            - task_key: ingest_api
-
-          pipeline_task:
-            pipeline_id: ${resources.pipelines.bronze_pipeline.id}
-
-        - task_key: silver_pipeline
-
-          depends_on:
-            - task_key: bronze_pipeline
-
-          pipeline_task:
-            pipeline_id: ${resources.pipelines.silver_pipeline.id}
-
-        - task_key: gold_pipeline
-
-          depends_on:
-            - task_key: silver_pipeline
-
-          pipeline_task:
-            pipeline_id: ${resources.pipelines.gold_pipeline.id}
