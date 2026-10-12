@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - main
+      - dev
 
 permissions:
   contents: read
@@ -38,9 +39,9 @@ jobs:
         run: uv run pytest -q --ignore=tests/gold --ignore=tests/silver
 
   integration-tests:
-    name: Databricks Integration Tests
+    name: Databricks DEV Integration Tests
     needs: validate
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
     runs-on: ubuntu-latest
     environment: dev
 
@@ -99,75 +100,3 @@ jobs:
 
       - name: Run Databricks integration tests
         run: uv run pytest tests/gold tests/silver -q
-
-  deploy-prod:
-    name: Deploy Databricks Bundle to PROD
-    needs: integration-tests
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    environment: prod
-
-    permissions:
-      id-token: write
-      contents: read
-
-    env:
-      DATABRICKS_AUTH_TYPE: github-oidc
-      DATABRICKS_HOST: https://dbc-83c2a237-8434.cloud.databricks.com
-      DATABRICKS_CLIENT_ID: f5fb7304-bf5c-4716-a69c-1f99f8f67c14
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v6
-        with:
-          enable-cache: true
-
-      - name: Install dependencies
-        run: uv sync
-
-      - name: Install Databricks CLI
-        uses: databricks/setup-cli@v1.8.0
-        with:
-          version: 1.18.0
-
-      - name: Diagnose Databricks bundle configuration
-        run: |
-          echo "PWD=$(pwd)"
-          echo "DATABRICKS_HOST=$DATABRICKS_HOST"
-          echo "DATABRICKS_AUTH_TYPE=$DATABRICKS_AUTH_TYPE"
-          echo "DATABRICKS_CLIENT_ID=$DATABRICKS_CLIENT_ID"
-          echo "DATABRICKS_CONFIG_PROFILE=${DATABRICKS_CONFIG_PROFILE:-<unset>}"
-          echo "DATABRICKS_CONFIG_FILE=${DATABRICKS_CONFIG_FILE:-<unset>}"
-          echo "--- bundle settings files ---"
-          find .databricks -maxdepth 3 -type f -print 2>/dev/null || true
-          echo "--- Databricks CLI authentication description ---"
-          databricks auth describe
-
-      - name: Verify Databricks authentication
-        working-directory: /tmp
-        run: databricks current-user me
-
-      - name: Validate Databricks bundle
-        run: databricks bundle validate -t prod
-
-      - name: Inspect PROD resolved permissions
-        run: |
-          databricks bundle validate -t prod -o json > /tmp/prod-validate.json
-          echo "--- Resolved PROD permissions ---"
-          grep -A4 -B2 '"IS_OWNER"' /tmp/prod-validate.json || true
-          echo "--- Resolved PROD CAN_MANAGE entries ---"
-          grep -A3 -B1 '"CAN_MANAGE"' /tmp/prod-validate.json || true
-
-      - name: Plan Databricks bundle for PROD
-        run: databricks bundle plan -t prod -o json
-
-      - name: Deploy Databricks bundle to PROD
-        run: databricks bundle deploy -t prod
