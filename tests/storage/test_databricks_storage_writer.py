@@ -57,12 +57,14 @@ def test_write_serializes_payload_and_writes_to_volume() -> None:
     writer = create_writer()
     metadata = create_metadata()
     payload = [{"id": 1, "status": "COMPLETE"}]
+    dbutils_mock = MagicMock()
 
     with (
         patch(
             "enterprise_api_ingestion_platform.storage."
-            "databricks_storage_writer.dbutils.fs.put"
-        ) as put_mock,
+            "databricks_storage_writer._get_dbutils",
+            return_value=dbutils_mock,
+        ),
         patch.object(
             writer,
             "get_file_size",
@@ -71,8 +73,8 @@ def test_write_serializes_payload_and_writes_to_volume() -> None:
     ):
         result = writer.write(metadata, payload)
 
-    put_mock.assert_called_once()
-    args = put_mock.call_args.args
+    dbutils_mock.fs.put.assert_called_once()
+    args = dbutils_mock.fs.put.call_args.args
 
     assert args[0] == result
     assert args[1] == json.dumps(
@@ -89,28 +91,32 @@ def test_get_file_size_returns_file_size() -> None:
     file_info = MagicMock()
     file_info.isDir.return_value = False
     file_info.size = 123
+    dbutils_mock = MagicMock()
+    dbutils_mock.fs.ls.return_value = [file_info]
 
     with patch(
         "enterprise_api_ingestion_platform.storage."
-        "databricks_storage_writer.dbutils.fs.ls",
-        return_value=[file_info],
-    ) as ls_mock:
+        "databricks_storage_writer._get_dbutils",
+        return_value=dbutils_mock,
+    ):
         size = writer.get_file_size("/Volumes/catalog/schema/volume/file.json")
 
     assert size == 123
-    ls_mock.assert_called_once_with(
+    dbutils_mock.fs.ls.assert_called_once_with(
         "/Volumes/catalog/schema/volume/file.json",
     )
 
 
 def test_get_file_size_raises_when_file_is_missing() -> None:
     writer = create_writer()
+    dbutils_mock = MagicMock()
+    dbutils_mock.fs.ls.return_value = []
 
     with (
         patch(
             "enterprise_api_ingestion_platform.storage."
-            "databricks_storage_writer.dbutils.fs.ls",
-            return_value=[],
+            "databricks_storage_writer._get_dbutils",
+            return_value=dbutils_mock,
         ),
         pytest.raises(
             FileNotFoundError,
@@ -124,12 +130,14 @@ def test_get_file_size_raises_for_directory() -> None:
     writer = create_writer()
     directory_info = MagicMock()
     directory_info.isDir.return_value = True
+    dbutils_mock = MagicMock()
+    dbutils_mock.fs.ls.return_value = [directory_info]
 
     with (
         patch(
             "enterprise_api_ingestion_platform.storage."
-            "databricks_storage_writer.dbutils.fs.ls",
-            return_value=[directory_info],
+            "databricks_storage_writer._get_dbutils",
+            return_value=dbutils_mock,
         ),
         pytest.raises(
             IsADirectoryError,

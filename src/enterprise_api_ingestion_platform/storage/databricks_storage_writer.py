@@ -7,7 +7,6 @@ from pathlib import PurePosixPath
 from typing import Any, Iterable
 from uuid import uuid4
 
-from databricks.sdk.runtime import dbutils
 from pyspark.sql import SparkSession
 
 from enterprise_api_ingestion_platform.logging.logger import get_logger
@@ -15,6 +14,13 @@ from enterprise_api_ingestion_platform.models.api_metadata import ApiMetadata
 from enterprise_api_ingestion_platform.storage.storage_writer import StorageWriter
 
 logger = get_logger(__name__)
+
+
+def _get_dbutils() -> Any:
+    """Load Databricks runtime utilities only when filesystem access is needed."""
+    from databricks.sdk.runtime import dbutils
+
+    return dbutils
 
 
 class DatabricksManagedStorageWriter(StorageWriter):
@@ -141,7 +147,7 @@ class DatabricksManagedStorageWriter(StorageWriter):
         Databricks file-system utilities.
         """
 
-        file_info = dbutils.fs.ls(
+        file_info = _get_dbutils().fs.ls(
             file_path,
         )
 
@@ -210,7 +216,7 @@ class DatabricksManagedStorageWriter(StorageWriter):
         Writes JSON directly as a file in the Unity Catalog Volume.
         """
 
-        dbutils.fs.put(
+        _get_dbutils().fs.put(
             target_file,
             content,
             True,
