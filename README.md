@@ -667,6 +667,111 @@ The bundle manages:
 
 ---
 
+## Git branching and CI/CD release workflow
+
+The repository uses `dev` and `main` branches. A separate `prod` Git branch is
+not required: `main` is the approved source branch for production deployments,
+while the Databricks Asset Bundle target `prod` identifies the deployment
+environment.
+
+### Development and production promotion
+
+```mermaid
+flowchart TD
+    A[Push changes to dev] --> B[Validate bundle and run CI tests]
+    B --> C[Deploy bundle to DEV]
+    C --> D[Run DEV integration tests]
+    D --> E{DEV verified?}
+    E -- No --> F[Fix DEV and push changes again]
+    F --> A
+    E -- Yes --> G[Merge approved changes into main]
+    G --> H[Validate and test main]
+    H --> I[Manually trigger Deploy PROD workflow]
+    I --> J[Validate and plan PROD]
+    J --> K[Deploy bundle to PROD]
+```
+
+### Release procedure
+
+1. **Develop on `dev`.** Commit and push intended changes to `dev`. The
+   development workflow should validate the bundle, run CI tests, deploy to
+   DEV, and run DEV integration tests.
+2. **Verify DEV.** Review the GitHub Actions run and confirm all required
+   validation, deployment, and integration-test steps succeeded. If a step
+   fails, fix the issue on `dev` and repeat the checks.
+3. **Promote approved changes to `main`.** Merge the verified changes through
+   the repository's pull-request process. Confirm validation and tests for
+   `main` pass before releasing to PROD.
+4. **Identify the release.** Record the approved commit SHA. A version tag
+   (for example, `v1.0.0`) can provide a human-readable release reference.
+   Creating a tag alone does not trigger the current manual PROD workflow.
+5. **Manually deploy to PROD.** In GitHub, open **Actions → Deploy PROD**,
+   choose `main`, and select **Run workflow**. Review the validation and plan
+   output, then confirm the deployment step succeeds.
+6. **Record the deployment.** Keep the release tag (if used), commit SHA,
+   GitHub Actions run URL, and deployment result together for traceability.
+
+### Important distinction: Git branch vs. Databricks target
+
+- `dev` and `main` are Git branches that contain source-code history.
+- `-t dev` and `-t prod` select Databricks Asset Bundle targets; they are not
+  Git branch names.
+- `git commit` records changes locally. `git push` publishes commits to GitHub;
+  neither command directly deploys a bundle unless a configured workflow is
+  triggered and successfully completes.
+- The current `Deploy PROD` workflow is manually triggered and restricted to
+  `main`. It deploys the revision checked out from `main`; creating a release
+  tag alone does not make the workflow deploy that tag. To deploy an arbitrary
+  tag or commit, the workflow must be changed to accept and check out that
+  explicit revision.
+- A successful `databricks bundle deploy -t prod` confirms bundle deployment,
+  not that ingestion jobs or downstream pipelines have executed successfully.
+  Verify workload runs separately when operational validation is required.
+
+### Commands commonly used
+
+Inspect the current branch and working tree:
+
+```powershell
+git status
+git branch --show-current
+git log -2 --oneline
+```
+
+After reviewing and staging only intended files, commit and push to DEV:
+
+```powershell
+git add <approved-files>
+git commit -m "Describe the approved change"
+git push origin dev
+```
+
+After DEV checks pass, merge approved changes to `main` using the repository's
+pull-request process. Then run **Actions → Deploy PROD** manually.
+
+For local bundle validation and deployment, use the appropriate configured
+Databricks profile:
+
+```powershell
+databricks bundle validate -t dev
+databricks bundle plan -t dev
+databricks bundle deploy -t dev
+```
+
+PROD deployment through the current release process is performed by GitHub
+Actions using GitHub OIDC authentication:
+
+```powershell
+databricks bundle validate -t prod
+databricks bundle plan -t prod
+databricks bundle deploy -t prod
+```
+
+These commands illustrate bundle operations; running them locally is not the
+same as triggering the GitHub Actions release workflow.
+
+---
+
 ## Pipeline execution
 
 The deployed workflow follows:
